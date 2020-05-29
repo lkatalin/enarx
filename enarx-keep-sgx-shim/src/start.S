@@ -171,7 +171,8 @@ enclave:
     movq    $0,                     SRSP(%r11)      # Clear syscall return stack pointer field
     mov     %rax,                   %rsp            # Restore the syscall return stack pointer
     mov     %rdi,                   %rax            # Correct syscall return value register
- #   popq    %r8
+
+    add     $4096,                  %rsp
     loadp                                           # Restore trusted preserved registers
 #    popq    %r8
 #    popq    %r8
@@ -207,6 +208,9 @@ syscall:
     # function prologue
     push    %rbp
     mov     %rsp,                %rbp
+
+    savep                                           # Save preserved registers
+
     sub     $4096,                  %rsp
 #    and     $(-0x40),               %rsp
     
@@ -220,7 +224,6 @@ syscall:
 #    pop     %rdx  
 #    pushq   $0
     
-    savep                                           # Save preserved registers
     mov     %rsp,                   SRSP(%rcx)      # Save restoration stack pointer
     
     zerox                                           # Clear xCPU state
