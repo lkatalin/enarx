@@ -211,8 +211,9 @@ syscall:
 #    xsavec  16(%rsp)
 #    pop     %rax
 #    pop     %rdx  
-    pushq   $0
-     
+#    pushq   $0
+    sub      $8,                    %rsp 
+    
     savep                                           # Save preserved registers
     mov     %rsp,                   SRSP(%rcx)      # Save restoration stack pointer
     
