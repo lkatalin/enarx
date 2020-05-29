@@ -171,7 +171,22 @@ enclave:
     movq    $0,                     SRSP(%r11)      # Clear syscall return stack pointer field
     mov     %rax,                   %rsp            # Restore the syscall return stack pointer
     mov     %rdi,                   %rax            # Correct syscall return value register
+ #   popq    %r8
     loadp                                           # Restore trusted preserved registers
+    popq    %r8
+    #xrstor
+#    push    %rdx
+#    push    %rax
+#    movq    $~0,                    %rdx            # Set mask for xrstor in rdx
+#    movq    $~0,                    %rax            # Set mask for xrstor in rax
+#    xrstor  16(%rsp)                                  # Restore extended CPU state
+#    pop     %rax
+#    pop     %rdx
+
+    # function epilogue restores context from before xsave alignment
+#    mov     %rbp,                   %rsp
+#    pop     %rbp
+
     zeroa                                           # Clear the argument registers
     zerot                                           # Clear the temporary registers
     zerof   %r11                                    # Clear CPU flags
@@ -182,6 +197,22 @@ enclave:
     .globl syscall
     .type syscall, @function
 syscall:
+    # function prologue
+#    push    %rbp
+#    mov     %rsp,                %rbp
+#    sub     $1,                  %rsp
+#    and     $(-0x40),               %rsp
+    
+    # xsavec
+#    push    %rdx
+#    push    %rax
+#    movq    $~0,                   %rdx
+#    movq    $~0,                   %rax
+#    xsavec  16(%rsp)
+#    pop     %rax
+#    pop     %rdx  
+    pushq   $0
+     
     savep                                           # Save preserved registers
     mov     %rsp,                   SRSP(%rcx)      # Save restoration stack pointer
     
@@ -189,9 +220,13 @@ syscall:
     xor     %rcx,                   %rcx            # Clear %rcx
     zerof   %rcx                                    # Clear CPU flags
 
-    mov     0x38(%rsp),             %r10            # Export %r10
-    mov     0x40(%rsp),             %r11            # Export %rax in %r11
-    mov     0x48(%rsp),             %rsp            # Get the exit context
+#    mov     0x38(%rsp),             %r10            # Export %r10
+#    mov     0x40(%rsp),             %r11            # Export %rax in %r11
+#    mov     0x48(%rsp),             %rsp            # Get the exit context (ctx)
+
+    mov     0x40(%rsp),             %r10            # Export %r10
+    mov     0x48(%rsp),             %r11            # Export %rax in %r11
+    mov     0x50(%rsp),             %rsp            # Get the exit context
 
     jmp     .Leexit
 
