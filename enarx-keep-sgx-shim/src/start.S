@@ -173,7 +173,14 @@ enclave:
     mov     %rdi,                   %rax            # Correct syscall return value register
  #   popq    %r8
     loadp                                           # Restore trusted preserved registers
-    popq    %r8
+#    popq    %r8
+#    popq    %r8
+#    popq    %r8
+#    popq    %r8
+#    popq    %r8
+#    popq    %r8
+#    popq    %r8
+#    popq    %r8
     #xrstor
 #    push    %rdx
 #    push    %rax
@@ -184,8 +191,8 @@ enclave:
 #    pop     %rdx
 
     # function epilogue restores context from before xsave alignment
-#    mov     %rbp,                   %rsp
-#    pop     %rbp
+    mov     %rbp,                   %rsp
+    pop     %rbp
 
     zeroa                                           # Clear the argument registers
     zerot                                           # Clear the temporary registers
@@ -198,9 +205,9 @@ enclave:
     .type syscall, @function
 syscall:
     # function prologue
-#    push    %rbp
-#    mov     %rsp,                %rbp
-#    sub     $1,                  %rsp
+    push    %rbp
+    mov     %rsp,                %rbp
+    sub     $4096,                  %rsp
 #    and     $(-0x40),               %rsp
     
     # xsavec
@@ -212,7 +219,6 @@ syscall:
 #    pop     %rax
 #    pop     %rdx  
 #    pushq   $0
-    sub      $8,                    %rsp 
     
     savep                                           # Save preserved registers
     mov     %rsp,                   SRSP(%rcx)      # Save restoration stack pointer
@@ -225,9 +231,9 @@ syscall:
 #    mov     0x40(%rsp),             %r11            # Export %rax in %r11
 #    mov     0x48(%rsp),             %rsp            # Get the exit context (ctx)
 
-    mov     0x40(%rsp),             %r10            # Export %r10
-    mov     0x48(%rsp),             %r11            # Export %rax in %r11
-    mov     0x50(%rsp),             %rsp            # Get the exit context
+    mov     0x1040(%rsp),             %r10            # Export %r10
+    mov     0x1048(%rsp),             %r11            # Export %rax in %r11
+    mov     0x1050(%rsp),             %rsp            # Get the exit context
 
     jmp     .Leexit
 
