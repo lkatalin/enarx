@@ -172,16 +172,12 @@ enclave:
     mov     %rax,                   %rsp            # Restore the syscall return stack pointer
     mov     %rdi,                   %rax            # Correct syscall return value register
 
- #   add     $4096,                  %rsp
-#    popq    %r8
-#    popq    %r8
-#    popq    %r8
-#    popq    %r8
-#    popq    %r8
-#    popq    %r8
-#    popq    %r8
-#    popq    %r8
-    #xrstor
+    loadp                                           # Restore trusted preserved registers
+
+    # dummy xrstor
+    add     $4096,                 %rsp
+
+    #the xrstor we want
 #    push    %rdx
 #    push    %rax
 #    movq    $~0,                    %rdx            # Set mask for xrstor in rdx
@@ -189,15 +185,11 @@ enclave:
 #    xrstor  16(%rsp)                                  # Restore extended CPU state
 #    pop     %rax
 #    pop     %rdx
-
-    loadp                                           # Restore trusted preserved registers
-    add     $4096,                 %rsp
     
     # function epilogue restores context from before xsave alignment
     mov     %rbp,                   %rsp
     pop     %rbp
     
-
     zeroa                                           # Clear the argument registers
     zerot                                           # Clear the temporary registers
     zerof   %r11                                    # Clear CPU flags
@@ -207,21 +199,20 @@ enclave:
     .text
     .globl syscall
     .type syscall, @function
-syscall:
-    
+syscall:    
     # function prologue
     push    %rbp
     mov     %rsp,                %rbp
 
-
+    # preserve current %rsp because the alignment for xsave
+    # will destroy it & we need to hardcode offsets for exit
     mov    %rsp,                 %rbx
 
+    # dummy xsave
     sub     $4096,                  %rsp
 #    and     $(-0x40),               %rsp
 
-    savep                                           # Save preserved registers
-    
-    # xsavec
+    # the xsave we want
 #    push    %rdx
 #    push    %rax
 #    movq    $~0,                   %rdx
@@ -229,7 +220,8 @@ syscall:
 #    xsavec  16(%rsp)
 #    pop     %rax
 #    pop     %rdx  
-#    pushq   $0
+
+    savep                                           # Save preserved registers
     
     mov     %rsp,                   SRSP(%rcx)      # Save restoration stack pointer
     
@@ -237,17 +229,11 @@ syscall:
     xor     %rcx,                   %rcx            # Clear %rcx
     zerof   %rcx                                    # Clear CPU flags
 
-#    mov     0x38(%rsp),             %r10            # Export %r10
-#    mov     0x40(%rsp),             %r11            # Export %rax in %r11
-#    mov     0x48(%rsp),             %rsp            # Get the exit context (ctx)
-
-#    mov     0x1040(%rsp),             %r10            # Export %r10
-#    mov     0x1048(%rsp),             %r11            # Export %rax in %r11
-#    mov     0x1050(%rsp),             %rsp            # Get the exit context
-
+    # offset = hex of (8 * n) where n is the reg index
+    # index = (dec of offset) / 8
     mov      0x10(%rbx),             %r10            # Export %r10
     mov      0x18(%rbx),             %r11            # Export %rax in %r11
-    mov      0x20(%rbx),              %rsp            # Get the exit context
+    mov      0x20(%rbx),             %rsp            # Get the exit context
 
     jmp     .Leexit
 
