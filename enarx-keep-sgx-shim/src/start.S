@@ -172,8 +172,7 @@ enclave:
     mov     %rax,                   %rsp            # Restore the syscall return stack pointer
     mov     %rdi,                   %rax            # Correct syscall return value register
 
-    add     $4096,                  %rsp
-    loadp                                           # Restore trusted preserved registers
+ #   add     $4096,                  %rsp
 #    popq    %r8
 #    popq    %r8
 #    popq    %r8
@@ -191,9 +190,13 @@ enclave:
 #    pop     %rax
 #    pop     %rdx
 
+    loadp                                           # Restore trusted preserved registers
+    add     $4096,                 %rsp
+    
     # function epilogue restores context from before xsave alignment
     mov     %rbp,                   %rsp
     pop     %rbp
+    
 
     zeroa                                           # Clear the argument registers
     zerot                                           # Clear the temporary registers
@@ -205,13 +208,16 @@ enclave:
     .globl syscall
     .type syscall, @function
 syscall:
+    
     # function prologue
     push    %rbp
     mov     %rsp,                %rbp
 
-    savep                                           # Save preserved registers
+
+    mov    %rsp,                 %rbx
 
     sub     $4096,                  %rsp
+    savep                                           # Save preserved registers
 #    and     $(-0x40),               %rsp
     
     # xsavec
@@ -238,9 +244,9 @@ syscall:
 #    mov     0x1048(%rsp),             %r11            # Export %rax in %r11
 #    mov     0x1050(%rsp),             %rsp            # Get the exit context
 
-    mov      0x10(%rbp),             %r10            # Export %r10
-    mov      0x18(%rbp),             %r11            # Export %rax in %r11
-    mov      0x20(%rbp),              %rsp            # Get the exit context
+    mov      0x10(%rbx),             %r10            # Export %r10
+    mov      0x18(%rbx),             %r11            # Export %rax in %r11
+    mov      0x20(%rbx),              %rsp            # Get the exit context
 
     jmp     .Leexit
 
