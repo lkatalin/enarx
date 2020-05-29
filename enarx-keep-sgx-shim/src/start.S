@@ -234,9 +234,13 @@ syscall:
 #    mov     0x40(%rsp),             %r11            # Export %rax in %r11
 #    mov     0x48(%rsp),             %rsp            # Get the exit context (ctx)
 
-    mov     0x1040(%rsp),             %r10            # Export %r10
-    mov     0x1048(%rsp),             %r11            # Export %rax in %r11
-    mov     0x1050(%rsp),             %rsp            # Get the exit context
+#    mov     0x1040(%rsp),             %r10            # Export %r10
+#    mov     0x1048(%rsp),             %r11            # Export %rax in %r11
+#    mov     0x1050(%rsp),             %rsp            # Get the exit context
+
+    mov      0x10(%rbp),             %r10            # Export %r10
+    mov      0x18(%rbp),             %r11            # Export %rax in %r11
+    mov      0x20(%rbp),              %rsp            # Get the exit context
 
     jmp     .Leexit
 
