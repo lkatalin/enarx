@@ -217,8 +217,9 @@ syscall:
     mov    %rsp,                 %rbx
 
     sub     $4096,                  %rsp
-    savep                                           # Save preserved registers
 #    and     $(-0x40),               %rsp
+
+    savep                                           # Save preserved registers
     
     # xsavec
 #    push    %rdx
