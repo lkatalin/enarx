@@ -23,6 +23,7 @@ CARGO_MAKE_CRATE_WORKSPACE_MEMBERS = [
 	"sgx-types",
 	"span",
 	"testing",
+	"tests",
 	"units",
 	"vdso"
 ]
@@ -64,6 +65,23 @@ command = "${CARGO_WORKSPACE_ROOT}/.tests/cargo-toml-package-license"
 [tasks.misc-licenses-crate]
 command = "${CARGO_WORKSPACE_ROOT}/.tests/misc-licenses-crate"
 
+# This will run first fmt + build for each crate and then test for each crate.
+[tasks.test]
+clear = true
+workspace = false
+run_task = { name = ["fmtbuild", "test-inner"], fork = true }
+
+# Runs format and build (used before testing).
+[tasks.fmtbuild]
+dependencies = ["format", "build"]
+
+# Copy of "test" under a different name to avoid circular dependency.
+[tasks.test-inner]
+description = "Runs all available tests."
+category = "Test"
+command = "cargo"
+args = ["test", "@@remove-empty(CARGO_MAKE_CARGO_VERBOSE_FLAGS)", "@@split(CARGO_MAKE_CARGO_BUILD_TEST_FLAGS, )"]
+
 # Add additional tests to the predefined 'ci-flow' target.
 [tasks.pre-ci-flow]
 dependencies = [
@@ -77,4 +95,30 @@ dependencies = [
 	"misc-licenses-rs-spdx",
 	"misc-lints-clippy-all",
 	"misc-lints-missing-docs",
+]
+
+# Overwrites ci-flow task to ensure tests are run last in ci-flow.
+[tasks.ci-flow]
+clear = true
+workspace = false
+run_task = { name = ["ci-flow-mod", "test-inner"], fork = true }
+
+# Removes test-flow from ci-flow in order to ensure build dependencies are met
+# during testing.
+[tasks.ci-flow-mod]
+description = "CI task will run cargo build and cargo test with verbose output"
+category = "CI"
+dependencies = [
+    "pre-ci-flow",
+    "print-env-flow",
+    "pre-build",
+    "check-format-ci-flow",
+    "clippy-ci-flow",
+    "build",
+    "post-build",
+    "examples-ci-flow",
+    "bench-ci-flow",
+    "outdated-ci-flow",
+    "ci-coverage-flow",
+    "post-ci-flow"
 ]
