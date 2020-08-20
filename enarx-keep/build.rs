@@ -5,6 +5,9 @@ use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+const CRATE: &str = env!("CARGO_MANIFEST_DIR");
+const TEST_BIN: &str = "tests/test-bin";
+
 fn rerun_src(path: impl AsRef<Path>) -> std::io::Result<()> {
     for entry in std::fs::read_dir(path)? {
         let path = entry?.path();
@@ -30,21 +33,58 @@ fn rerun_src(path: impl AsRef<Path>) -> std::io::Result<()> {
     Ok(())
 }
 
+fn create_dir(path: &PathBuf) {
+    match std::fs::create_dir(&path) {
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(e) => {
+            eprintln!("Can't create {:#?} : {:#?}", path, e);
+            std::process::exit(1);
+        }
+        Ok(_) => {}
+    }
+}
+
+fn build_asm_tests(path: &Path) {
+    let test_dir = Path::new(CRATE).join(TEST_BIN);
+    let asm_out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("test-bin");
+
+    create_dir(&asm_out_dir);
+
+    for entry in path.read_dir().expect("failed to read test-bin dir") {
+        let file = entry.expect("failed to read file in test-bin dir");
+        let f = file.file_name();
+        let filename = f.to_str().unwrap();
+        let output: &str = filename.split('.').collect::<Vec<&str>>()[0];
+
+        let mut cmd = cc::Build::new()
+            .no_default_flags(true)
+            .get_compiler()
+            .to_command();
+
+        cmd.current_dir(&asm_out_dir)
+            .current_dir(&asm_out_dir)
+            .arg("-nostdlib")
+            .arg("-static-pie")
+            .arg("-fPIC")
+            .arg("-o")
+            .arg(output)
+            .arg(test_dir.join(filename))
+            .status()
+            .expect("failed to compile binary");
+    }
+}
+
 fn main() {
+    let tests = Path::new(CRATE).join(TEST_BIN);
+    build_asm_tests(&tests);
+
     println!("cargo:rerun-if-env-changed=OUT_DIR");
     println!("cargo:rerun-if-env-changed=PROFILE");
 
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
     let out_dir_bin = out_dir.join("bin");
 
-    match std::fs::create_dir(&out_dir_bin) {
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-        Err(e) => {
-            eprintln!("Can't create {:#?} : {:#?}", out_dir_bin, e);
-            std::process::exit(1);
-        }
-        Ok(_) => {}
-    }
+    create_dir(&out_dir_bin);
 
     let profile: &[&str] = match std::env::var("PROFILE").unwrap().as_str() {
         "release" => &["--release"],
