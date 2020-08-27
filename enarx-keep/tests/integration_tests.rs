@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -17,10 +18,60 @@ fn path(input: &str) -> PathBuf {
 
 /// Returns true if running the binary exits with 0. Used in cases
 /// where there is no output or output does not matter.
+fn test_init() {
+    let mut filtered_env: HashMap<String, String> = std::env::vars()
+        .filter(|&(ref k, _)| {
+            k == "TERM"
+                || k == "TZ"
+                || k == "LANG"
+                || k == "PATH"
+                || k == "RUSTUP_HOME"
+                || k == "RUSTFLAGS"
+        })
+        .collect();
+
+    filtered_env.insert("ENARX_INTEGRATION_TESTS".into(), "1".into());
+
+    let status = Command::new("cargo")
+        .current_dir(CRATE)
+        .env_clear()
+        .envs(filtered_env)
+        .arg("+nightly")
+        .arg("build")
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .expect("failed to prepare");
+
+    if !status.success() {
+        eprintln!("failed to prepare");
+        std::process::exit(1);
+    }
+}
+
+/// Returns true if running the binary exits with 0. Used in cases
+/// where there is no output or output does not matter.
 fn run_succeeds(bin: PathBuf) -> bool {
+    let mut filtered_env: HashMap<String, String> = std::env::vars()
+        .filter(|&(ref k, _)| {
+            k == "TERM"
+                || k == "TZ"
+                || k == "LANG"
+                || k == "PATH"
+                || k == "RUSTUP_HOME"
+                || k == "RUSTFLAGS"
+        })
+        .collect();
+
+    filtered_env.insert("ENARX_INTEGRATION_TESTS".into(), "1".into());
+
     let mut cmd = Command::new("cargo")
         .current_dir(CRATE)
+        .arg("+nightly")
+        .env_clear()
+        .envs(filtered_env)
         .arg("run")
+        .arg("-q")
         .arg("exec")
         .arg(bin)
         .spawn()
@@ -37,8 +88,24 @@ fn run_succeeds(bin: PathBuf) -> bool {
 /// Returns a handle to a child process through which output (stdout, stderr) can
 /// be accessed.
 fn run_test(bin: PathBuf) -> std::process::Child {
+    let mut filtered_env: HashMap<String, String> = std::env::vars()
+        .filter(|&(ref k, _)| {
+            k == "TERM"
+                || k == "TZ"
+                || k == "LANG"
+                || k == "PATH"
+                || k == "RUSTUP_HOME"
+                || k == "RUSTFLAGS"
+        })
+        .collect();
+
+    filtered_env.insert("ENARX_INTEGRATION_TESTS".into(), "1".into());
+
     let mut cmd = Command::new("cargo")
         .current_dir(CRATE)
+        .env_clear()
+        .envs(filtered_env)
+        .arg("+nightly")
         .arg("run")
         .arg("-q")
         .arg("exec")
@@ -59,37 +126,43 @@ fn run_test(bin: PathBuf) -> std::process::Child {
 
 #[test]
 fn exit_zero() {
+    test_init();
     let code = path("exit_zero");
     assert!(run_succeeds(code));
 }
 
 #[test]
 fn exit_one() {
+    test_init();
     let code = path("exit_one");
     assert!(!run_succeeds(code));
 }
 
 #[test]
 fn clock_gettime() {
+    test_init();
     let code = path("clock_gettime");
     assert!(run_succeeds(code));
 }
 
 #[test]
 fn write_stdout() {
+    test_init();
     let mut buf = [0u8; 3];
     let code = path("write_stdout");
     let child = run_test(code);
-    child
-        .stdout
-        .unwrap()
+    let mut child_stdout = child.stdout.unwrap();
+    child_stdout
         .read(&mut buf)
         .expect("failed to read child stdout");
-    assert_eq!("hi\n", String::from_utf8(buf.to_vec()).unwrap());
+
+    assert_eq!("hi\n", String::from_utf8(buf.to_vec()).unwrap(),);
 }
 
 #[test]
 fn write_stderr() {
+    test_init();
+
     let mut buf = [0u8; 3];
     let code = path("write_stderr");
     let child = run_test(code);

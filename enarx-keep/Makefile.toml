@@ -6,6 +6,7 @@ toolchain = "nightly"
 
 [tasks.test]
 toolchain = "nightly"
+env = { RUSTFLAGS = "--cap-lints=allow" }
 
 [tasks.clippy]
 toolchain = "nightly"

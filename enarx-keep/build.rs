@@ -52,9 +52,8 @@ fn build_asm_tests(path: &Path) {
 
     for entry in path.read_dir().expect("failed to read test-bin dir") {
         let file = entry.expect("failed to read file in test-bin dir");
-        let f = file.file_name();
-        let filename = f.to_str().unwrap();
-        let output: &str = filename.split('.').collect::<Vec<&str>>()[0];
+        let filename = file.file_name();
+        let output = file.path().file_stem().unwrap().to_os_string();
 
         let mut cmd = cc::Build::new()
             .no_default_flags(true)
@@ -62,7 +61,6 @@ fn build_asm_tests(path: &Path) {
             .to_command();
 
         cmd.current_dir(&asm_out_dir)
-            .current_dir(&asm_out_dir)
             .arg("-nostdlib")
             .arg("-static-pie")
             .arg("-fPIC")
@@ -86,7 +84,8 @@ fn main() {
 
     create_dir(&out_dir_bin);
 
-    let profile: &[&str] = match std::env::var("PROFILE").unwrap().as_str() {
+    let prof_str = std::env::var("PROFILE").unwrap();
+    let profile: &[&str] = match prof_str.as_str() {
         "release" => &["--release"],
         _ => &[],
     };
@@ -121,17 +120,27 @@ fn main() {
         println!("cargo:rerun-if-changed={}/.cargo/config", path);
         rerun_src(&path).unwrap();
 
-        let stdout: Stdio = OpenOptions::new()
-            .write(true)
-            .open("/dev/tty")
-            .map(Stdio::from)
-            .unwrap_or_else(|_| Stdio::inherit());
+        let int_test = std::env::var("ENARX_INTEGRATION_TESTS").is_ok();
 
-        let stderr: Stdio = OpenOptions::new()
-            .write(true)
-            .open("/dev/tty")
-            .map(Stdio::from)
-            .unwrap_or_else(|_| Stdio::inherit());
+        let stdout: Stdio = if !int_test {
+            OpenOptions::new()
+                .write(true)
+                .open("/dev/tty")
+                .map(Stdio::from)
+                .unwrap_or_else(|_| Stdio::inherit())
+        } else {
+            Stdio::null()
+        };
+
+        let stderr: Stdio = if !int_test {
+            OpenOptions::new()
+                .write(true)
+                .open("/dev/tty")
+                .map(Stdio::from)
+                .unwrap_or_else(|_| Stdio::inherit())
+        } else {
+            Stdio::null()
+        };
 
         let status = Command::new("cargo")
             .current_dir(&path)
@@ -168,6 +177,8 @@ fn main() {
             .arg("-o")
             .arg(&out_bin)
             .arg(&shim_out_bin)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
             .status();
 
         match status {
